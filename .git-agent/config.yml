@@ -1,0 +1,3 @@
+scopes:
+    - name: mta
+      description: core logic, agents, tools, and coordinators in multi_tool_agent/; does not cover configuration or documentation files
