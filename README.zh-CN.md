@@ -1,10 +1,34 @@
-# Dialectic ![](https://img.shields.io/badge/A%20FRAD%20PRODUCT-WIP-yellow)
+# Dialectica ![](https://img.shields.io/badge/A%20FRAD%20PRODUCT-WIP-yellow)
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/FradSer?style=social)](https://twitter.com/FradSer) [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/) [![Framework](https://img.shields.io/badge/Framework-adk%202.1+-orange.svg)](https://google.github.io/adk-docs/) [![Evaluation](https://img.shields.io/badge/Evaluation-GAN%20对抗-red.svg)]()
 
 [English](README.md) | 简体中文
 
-**Dialectic（辩证）** 是一个可插拔的对抗式推理引擎。它在「思维树」上搜索：每个思维经过生成、对抗评估与迭代改进，再综合成答案——*正题 → 反题 → 合题*（Generator → Discriminator → Synthesizer）。设计参考了 [karpathy/autoresearch](https://github.com/karpathy/autoresearch) 的「提议→评估→保留最优」循环与 Claude Code 的可组合 workflows；每个阶段都是可替换组件，默认装配为思维树 + GAN 风格对抗评估循环，基于 Google ADK 2.1。
+**Dialectica（辩证）** 是一个可插拔的对抗式推理引擎。它在「思维树」上搜索：每个思维经过生成、对抗评估与迭代改进，再综合成答案——*正题 → 反题 → 合题*（Generator → Discriminator → Synthesizer）。设计参考了 [karpathy/autoresearch](https://github.com/karpathy/autoresearch) 的「提议→评估→保留最优」循环与 Claude Code 的可组合 workflows；每个阶段都是可替换组件，默认装配为思维树 + GAN 风格对抗评估循环，基于 Google ADK 2.1。
+
+## 安装
+
+作为库在你自己的项目里使用：
+
+```bash
+uv add git+https://github.com/FradSer/dialectica
+# 或: pip install git+https://github.com/FradSer/dialectica
+```
+
+```python
+import os, asyncio
+from dialectica import create_engine
+
+os.environ["GOOGLE_API_KEY"] = "..."          # 由应用方负责环境配置
+
+async def main():
+    result = await create_engine("你的问题").run()
+    print(result["final_answer"])
+
+asyncio.run(main())
+```
+
+库从 `os.environ` 读取配置，**不会**自己加载 `.env`。如果是想开发 Dialectica 本身，见 [安装与使用](#安装与使用)。
 
 ## 核心特性
 
@@ -98,13 +122,13 @@ graph TD
 
 1.  **克隆仓库:**
     ```bash
-    git clone https://github.com/FradSer/mas-tree-of-thought
-    cd mas-tree-of-thought
+    git clone https://github.com/FradSer/dialectica
+    cd dialectica
     ```
 
 2.  **设置环境变量:**
     ```bash
-    cd dialectic
+    cd dialectica
     cp .env.example .env
     # 编辑 .env 填入你的 API 密钥和模型偏好
     ```
@@ -117,7 +141,7 @@ graph TD
 4.  **运行一个问题:**
     ```python
     import asyncio
-    from dialectic import create_engine
+    from dialectica import create_engine
 
     async def main():
         engine = create_engine("设计一个可持续的城市交通系统")
@@ -183,7 +207,7 @@ engine = create_engine(
 ### 基本使用
 
 ```python
-from dialectic import create_engine
+from dialectica import create_engine
 
 # 创建引擎
 engine = create_engine(
@@ -227,7 +251,7 @@ engine = create_engine(
 ## 项目结构
 
 ```
-dialectic/
+dialectica/
 ├── __init__.py           # 公共 API 导出
 ├── agent.py              # 组合根：create_engine() 装配默认实现
 ├── coordinator.py        # 搜索引擎 —— 编排可插拔的各阶段
@@ -240,8 +264,7 @@ dialectic/
 ├── agent_factory.py      # 动态代理创建（角色模板）
 ├── models.py             # ThoughtData, DiscriminatorVerdict, EvaluationResult
 ├── llm_config.py         # 模型配置工厂
-├── validation.py         # 思维验证工具
-└── instructions.py       # 指令模板辅助
+└── validation.py         # 思维验证工具
 tests/
 ├── conftest.py           # 加载 .env 供 e2e 跳过判断
 ├── helpers.py            # 确定性的 mock LLM 替身
@@ -260,7 +283,7 @@ tests/
 - **Mock 测试**（默认）—— 快速、确定、无需 API key。它把 LLM 调用点替换为替身，
   验证真实的编排逻辑：束搜索、GAN 优化循环、剪枝、综合。
 - **真实 E2E**（`@pytest.mark.e2e`）—— 用真实 Gemini API 跑完整工作流。默认不选中，
-  且在未设置 `GOOGLE_API_KEY`（从 `dialectic/.env` 加载）时自动跳过。
+  且在未设置 `GOOGLE_API_KEY`（从 `dialectica/.env` 加载）时自动跳过。
 
 ```bash
 uv run pytest          # 仅 mock 测试（秒级，无需 key）
@@ -282,10 +305,10 @@ uv run pytest -m e2e   # 真实 API E2E（较慢，需要 GOOGLE_API_KEY）
 `create_engine(...)` 负责装配默认实现。要定制，自己构建组件并直接构造 `Coordinator`：
 
 ```python
-from dialectic import Coordinator, BeamSearch, SinglePassEvaluator
-from dialectic.agent import build_default_components
-from dialectic.agent_factory import create_agent
-from dialectic.models import DiscriminatorVerdict
+from dialectica import Coordinator, BeamSearch, SinglePassEvaluator
+from dialectica.agent import build_default_components
+from dialectica.agent_factory import create_agent
+from dialectica.models import DiscriminatorVerdict
 
 # 从默认实现起步，替换其中一个阶段：
 generator, _evaluator, _selector, synthesizer = build_default_components()
@@ -339,11 +362,11 @@ result = await engine.run()
 
 ## 迁移到 v0.3
 
-v0.3 把项目更名为 **Dialectic**，并把单体 coordinator 改造成可插拔引擎。旧的公共名称仍作为别名可用。
+v0.3 把项目更名为 **Dialectica**，并把单体 coordinator 改造成可插拔引擎。旧的公共名称仍作为别名可用。
 
 | 旧 | 新 |
 |----|----|
-| 包 `multi_tool_agent` | 包 `dialectic` |
+| 包 `multi_tool_agent` | 包 `dialectica` |
 | `create_engine(...)` | `create_engine(...)`（旧名保留别名） |
 | `Coordinator` | `Engine`（旧名保留别名） |
 | `coordinator.run(invocation_context)` | `engine.run()`（无参数） |
@@ -355,11 +378,11 @@ from multi_tool_agent import create_engine
 result = await create_engine("...").run(ctx)
 
 # 新
-from dialectic import create_engine
+from dialectica import create_engine
 result = await create_engine("...").run()
 ```
 
-定制现在是一等公民——自己构建各阶段并注入（见 [可插拔架构](#可插拔架构)）。对使用默认管线的调用方而言，唯一的破坏性变更就是把导入路径 `multi_tool_agent` 改成 `dialectic`。
+定制现在是一等公民——自己构建各阶段并注入（见 [可插拔架构](#可插拔架构)）。对使用默认管线的调用方而言，唯一的破坏性变更就是把导入路径 `multi_tool_agent` 改成 `dialectica`。
 
 ## 性能考虑
 
@@ -399,7 +422,7 @@ uv pip show google-adk
 ```bash
 # 测试 Google AI Studio
 export GOOGLE_API_KEY=your-key
-uv run python -c "from dialectic import create_engine; print('OK')"
+uv run python -c "from dialectica import create_engine; print('OK')"
 ```
 
 ## 贡献
@@ -413,7 +436,7 @@ uv run python -c "from dialectic import create_engine; print('OK')"
 
 ## 许可证
 
-[你的许可证信息]
+[MIT](LICENSE)
 
 ## 参考资料
 

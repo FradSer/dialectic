@@ -453,20 +453,20 @@ wheels = [
 ]
 
 [[package]]
-name = "dialectic"
+name = "dialectica"
 version = "0.3.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "google-adk" },
     { name = "litellm" },
     { name = "pydantic" },
-    { name = "python-dotenv" },
 ]
 
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "python-dotenv" },
 ]
 
 [package.metadata]
@@ -474,13 +474,13 @@ requires-dist = [
     { name = "google-adk", specifier = ">=2.0.0" },
     { name = "litellm", specifier = ">=1.66.0" },
     { name = "pydantic", specifier = ">=2.11.3" },
-    { name = "python-dotenv", specifier = ">=1.0.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
 ]
 
 [[package]]

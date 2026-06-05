@@ -1,20 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "dialectic"
+name = "dialectica"
 version = "0.3.0"
 description = "An adversarial reasoning engine: a pluggable tree-search workflow where thoughts are generated, adversarially evaluated, and synthesized (thesis -> antithesis -> synthesis)."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Frad LEE", email = "fradser@gmail.com" }]
 requires-python = ">=3.11"
 dependencies = [
     "google-adk>=2.0.0",
     "litellm>=1.66.0",
     "pydantic>=2.11.3",
-    "python-dotenv>=1.0.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.4.0",
+    "python-dotenv>=1.2.2",
 ]
 
 [tool.pytest.ini_options]
@@ -26,3 +33,6 @@ addopts = "-m 'not e2e'"
 markers = [
     "e2e: end-to-end test that calls the real Gemini API (requires GOOGLE_API_KEY)",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["dialectica"]

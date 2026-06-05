@@ -1,10 +1,35 @@
-# Dialectic ![](https://img.shields.io/badge/A%20FRAD%20PRODUCT-WIP-yellow)
+# Dialectica ![](https://img.shields.io/badge/A%20FRAD%20PRODUCT-WIP-yellow)
 
 [![Twitter Follow](https://img.shields.io/twitter/follow/FradSer?style=social)](https://twitter.com/FradSer) [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/) [![Framework](https://img.shields.io/badge/Framework-ADK%202.1-orange.svg)](https://google.github.io/adk-docs/) [![Evaluation](https://img.shields.io/badge/Evaluation-GAN%20Adversarial-purple.svg)]()
 
 English | [简体中文](README.zh-CN.md)
 
-**Dialectic** is a pluggable adversarial reasoning engine. It searches a tree of "thoughts" where each thought is generated, adversarially evaluated and iteratively refined, then synthesized into an answer — *thesis → antithesis → synthesis* (Generator → Discriminator → Synthesizer). Inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch)'s propose→evaluate→keep-best loop and Claude Code's composable workflows, every stage is a swappable component; the default wiring is Tree-of-Thoughts + a GAN-style evaluation loop on Google ADK 2.1.
+**Dialectica** is a pluggable adversarial reasoning engine. It searches a tree of "thoughts" where each thought is generated, adversarially evaluated and iteratively refined, then synthesized into an answer — *thesis → antithesis → synthesis* (Generator → Discriminator → Synthesizer). Inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch)'s propose→evaluate→keep-best loop and Claude Code's composable workflows, every stage is a swappable component; the default wiring is Tree-of-Thoughts + a GAN-style evaluation loop on Google ADK 2.1.
+
+## Install
+
+Use it as a library in your own project:
+
+```bash
+uv add git+https://github.com/FradSer/dialectica
+# or: pip install git+https://github.com/FradSer/dialectica
+```
+
+```python
+import os, asyncio
+from dialectica import create_engine
+
+os.environ["GOOGLE_API_KEY"] = "..."          # the app owns env setup
+
+async def main():
+    result = await create_engine("Your problem here").run()
+    print(result["final_answer"])
+
+asyncio.run(main())
+```
+
+The library reads configuration from `os.environ` and does **not** load `.env`
+itself. To work on Dialectica instead, see [Setup and Usage](#setup-and-usage).
 
 ## Key Features
 
@@ -96,13 +121,13 @@ Exploration stops when the beam empties or `max_depth` is reached.
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/FradSer/mas-tree-of-thought
-   cd mas-tree-of-thought
+   git clone https://github.com/FradSer/dialectica
+   cd dialectica
    ```
 
 2. **Set up environment variables:**
    ```bash
-   cd dialectic
+   cd dialectica
    cp .env.example .env
    # Edit .env with your API keys and model preferences
    ```
@@ -115,7 +140,7 @@ Exploration stops when the beam empties or `max_depth` is reached.
 4. **Run a problem:**
    ```python
    import asyncio
-   from dialectic import create_engine
+   from dialectica import create_engine
 
    async def main():
        engine = create_engine("Design a sustainable urban transport system")
@@ -181,7 +206,7 @@ engine = create_engine(
 ### Basic Usage
 
 ```python
-from dialectic import create_engine
+from dialectica import create_engine
 
 # Create the engine
 engine = create_engine(
@@ -225,7 +250,7 @@ engine = create_engine(
 ## Project Structure
 
 ```
-dialectic/
+dialectica/
 ├── __init__.py           # Public API exports
 ├── agent.py              # Composition root: create_engine() wires defaults
 ├── coordinator.py        # Search engine — orchestrates the pluggable stages
@@ -238,8 +263,7 @@ dialectic/
 ├── agent_factory.py      # Dynamic agent creation (role templates)
 ├── models.py             # ThoughtData, DiscriminatorVerdict, EvaluationResult
 ├── llm_config.py         # Model configuration factory
-├── validation.py         # Thought validation utilities
-└── instructions.py       # Instruction template helpers
+└── validation.py         # Thought validation utilities
 tests/
 ├── conftest.py           # Loads .env for the e2e skip guard
 ├── helpers.py            # Deterministic mock LLM stand-ins
@@ -260,7 +284,7 @@ The suite has two tiers:
   search, the GAN refinement loop, pruning, and synthesis.
 - **Live E2E** (`@pytest.mark.e2e`) — drives the full workflow against the real
   Gemini API. Deselected by default and auto-skipped when `GOOGLE_API_KEY` is
-  unset (loaded from `dialectic/.env`).
+  unset (loaded from `dialectica/.env`).
 
 ```bash
 uv run pytest          # mocked tests only (seconds, no key)
@@ -285,15 +309,15 @@ ToT + GAN is just the default wiring.
 components yourself and construct `Coordinator` directly:
 
 ```python
-from dialectic import (
+from dialectica import (
     Coordinator, BeamSearch, SinglePassEvaluator, LlmSynthesizer,
 )
-from dialectic.agent import build_default_components
+from dialectica.agent import build_default_components
 
 # Start from the defaults, then swap a stage:
 generator, _evaluator, _selector, synthesizer = build_default_components()
-from dialectic.agent_factory import create_agent
-from dialectic.models import DiscriminatorVerdict
+from dialectica.agent_factory import create_agent
+from dialectica.models import DiscriminatorVerdict
 
 discriminator = create_agent(
     role="Discriminator", role_name="Discriminator", output_schema=DiscriminatorVerdict
@@ -347,12 +371,12 @@ Validates thought structure:
 
 ## Migration to v0.3
 
-v0.3 renames the project to **Dialectic** and turns the monolithic coordinator
+v0.3 renames the project to **Dialectica** and turns the monolithic coordinator
 into a pluggable engine. The old public names still work as aliases.
 
 | Was | Now |
 |-----|-----|
-| package `multi_tool_agent` | package `dialectic` |
+| package `multi_tool_agent` | package `dialectica` |
 | `create_engine(...)` | `create_engine(...)` *(old name aliased)* |
 | `Coordinator` | `Engine` *(old name aliased)* |
 | `coordinator.run(invocation_context)` | `engine.run()` *(no argument)* |
@@ -364,13 +388,13 @@ from multi_tool_agent import create_engine
 result = await create_engine("...").run(ctx)
 
 # New
-from dialectic import create_engine
+from dialectica import create_engine
 result = await create_engine("...").run()
 ```
 
 Customization is now first-class — build the stages and inject them (see
 [Pluggable Architecture](#pluggable-architecture)). Update any import path
-`multi_tool_agent` → `dialectic`; that is the only breaking change for callers
+`multi_tool_agent` → `dialectica`; that is the only breaking change for callers
 using the default pipeline.
 
 ## Performance Considerations
@@ -411,7 +435,7 @@ uv pip show google-adk
 ```bash
 # Test Google AI Studio
 export GOOGLE_API_KEY=your-key
-uv run python -c "from dialectic import create_engine; print('OK')"
+uv run python -c "from dialectica import create_engine; print('OK')"
 ```
 
 ## Contributing
@@ -425,7 +449,7 @@ Contributions welcome! Areas of interest:
 
 ## License
 
-[Your license here]
+[MIT](LICENSE)
 
 ## References
 
