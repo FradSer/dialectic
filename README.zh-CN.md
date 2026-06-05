@@ -1,6 +1,6 @@
 # Dialectica ![](https://img.shields.io/badge/A%20FRAD%20PRODUCT-WIP-yellow)
 
-[![Twitter Follow](https://img.shields.io/twitter/follow/FradSer?style=social)](https://twitter.com/FradSer) [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/) [![Framework](https://img.shields.io/badge/Framework-adk%202.1+-orange.svg)](https://google.github.io/adk-docs/) [![Evaluation](https://img.shields.io/badge/Evaluation-GAN%20对抗-red.svg)]()
+[![PyPI](https://img.shields.io/pypi/v/dialectica.svg)](https://pypi.org/project/dialectica/) [![Twitter Follow](https://img.shields.io/twitter/follow/FradSer?style=social)](https://twitter.com/FradSer) [![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/) [![Framework](https://img.shields.io/badge/Framework-adk%202.1+-orange.svg)](https://google.github.io/adk-docs/) [![Evaluation](https://img.shields.io/badge/Evaluation-GAN%20对抗-red.svg)]()
 
 [English](README.md) | 简体中文
 
@@ -11,8 +11,8 @@
 作为库在你自己的项目里使用：
 
 ```bash
-uv add git+https://github.com/FradSer/dialectica
-# 或: pip install git+https://github.com/FradSer/dialectica
+uv add dialectica
+# 或: pip install dialectica
 ```
 
 ```python
