@@ -39,5 +39,7 @@ async def test_live_tot_workflow_produces_answer():
     assert result["best_path"][0] == "root"
 
     # at least one thought should have been adversarially scored
-    scored = [t for t in coordinator.thought_tree.values() if t.evaluationScore is not None]
+    scored = [
+        t for t in coordinator.thought_tree.values() if t.evaluationScore is not None
+    ]
     assert scored, "expected at least one GAN-evaluated thought"

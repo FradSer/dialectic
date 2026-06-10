@@ -50,7 +50,9 @@ async def test_generator_uses_strategy_prompt_for_root():
 
 async def test_generator_caps_item_count():
     # Regression: nested-markdown output once exploded into 21 "strategies".
-    gen = LlmGenerator(create_agent(role="Generator", role_name="Generator"), max_items=5)
+    gen = LlmGenerator(
+        create_agent(role="Generator", role_name="Generator"), max_items=5
+    )
     many = "\n".join(f"{i}. item {i}" for i in range(1, 21))  # 20 items
 
     async def fake(agent, instruction):
@@ -70,7 +72,9 @@ async def test_generator_uses_child_prompt_for_inner_node():
         captured["instruction"] = instruction
         return "1. step one\n2. step two"
 
-    node = ThoughtData(thoughtId="root_s0", parentId="root", thought="a strategy", depth=1)
+    node = ThoughtData(
+        thoughtId="root_s0", parentId="root", thought="a strategy", depth=1
+    )
     with patch("dialectica.agent_runtime.run_agent", fake):
         items = await gen.expand(node, "the problem")
 

@@ -7,9 +7,9 @@ together, with the single LLM seam (agent_runtime.run_agent) mocked.
 from contextlib import contextmanager
 from unittest.mock import patch
 
-from dialectica.agent import create_coordinator
-
 from helpers import make_constant_call_agent
+
+from dialectica.agent import create_coordinator
 
 
 @contextmanager
@@ -32,7 +32,9 @@ async def test_default_pipeline_runs_end_to_end():
     assert result["final_answer"] == "FINAL SYNTHESIZED ANSWER"
     assert result["stats"]["total_thoughts"] == 10
     assert result["best_path"][0] == "root"
-    evaluated = [t for t in coordinator.thought_tree.values() if t.status == "evaluated"]
+    evaluated = [
+        t for t in coordinator.thought_tree.values() if t.status == "evaluated"
+    ]
     assert evaluated and all(t.evaluationScore == 8.0 for t in evaluated)
 
 

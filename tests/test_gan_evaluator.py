@@ -3,12 +3,15 @@
 from unittest.mock import patch
 
 import pytest
+from helpers import make_call_agent, verdict_json
 
 from dialectica.agent_factory import create_agent
-from dialectica.gan_evaluator import AdversarialEvaluator, SinglePassEvaluator, parse_verdict
+from dialectica.gan_evaluator import (
+    AdversarialEvaluator,
+    SinglePassEvaluator,
+    parse_verdict,
+)
 from dialectica.models import DiscriminatorVerdict
-
-from helpers import make_call_agent, verdict_json
 
 
 @pytest.fixture
@@ -86,10 +89,15 @@ async def test_keeps_best_round_when_refinement_degrades():
     # best-scoring round, not the last one.
     generator = create_agent(role="Generator", role_name="Generator")
     discriminator = create_agent(
-        role="Discriminator", role_name="Discriminator", output_schema=DiscriminatorVerdict
+        role="Discriminator",
+        role_name="Discriminator",
+        output_schema=DiscriminatorVerdict,
     )
     evaluator = AdversarialEvaluator(
-        generator=generator, discriminator=discriminator, max_rounds=2, score_threshold=9.0
+        generator=generator,
+        discriminator=discriminator,
+        max_rounds=2,
+        score_threshold=9.0,
     )
     fake = make_call_agent([{"score": 7.5}, {"score": 3.0}], refined="WORSE VERSION")
     with patch("dialectica.agent_runtime.run_agent", fake):
@@ -102,7 +110,9 @@ async def test_keeps_best_round_when_refinement_degrades():
 
 async def test_single_pass_evaluator_scores_once_no_refinement():
     discriminator = create_agent(
-        role="Discriminator", role_name="Discriminator", output_schema=DiscriminatorVerdict
+        role="Discriminator",
+        role_name="Discriminator",
+        output_schema=DiscriminatorVerdict,
     )
     evaluator = SinglePassEvaluator(discriminator)
     fake = make_call_agent([{"score": 6.0}])
@@ -117,10 +127,15 @@ async def test_single_pass_evaluator_scores_once_no_refinement():
 async def test_max_rounds_reached_returns_last_eval():
     generator = create_agent(role="Generator", role_name="Generator")
     discriminator = create_agent(
-        role="Discriminator", role_name="Discriminator", output_schema=DiscriminatorVerdict
+        role="Discriminator",
+        role_name="Discriminator",
+        output_schema=DiscriminatorVerdict,
     )
     evaluator = AdversarialEvaluator(
-        generator=generator, discriminator=discriminator, max_rounds=2, score_threshold=7.0
+        generator=generator,
+        discriminator=discriminator,
+        max_rounds=2,
+        score_threshold=7.0,
     )
     fake = make_call_agent([{"score": 4.0}, {"score": 5.0}])
     with patch("dialectica.agent_runtime.run_agent", fake):

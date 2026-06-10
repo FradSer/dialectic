@@ -78,7 +78,9 @@ async def test_happy_path_builds_tree_and_synthesizes():
     # root + 3 strategies + (2 expanded parents * 3 children) = 10
     assert result["stats"]["total_thoughts"] == 10
     assert result["stats"]["max_depth_reached"] == 2
-    evaluated = [t for t in coordinator.thought_tree.values() if t.status == "evaluated"]
+    evaluated = [
+        t for t in coordinator.thought_tree.values() if t.status == "evaluated"
+    ]
     assert evaluated and all(t.evaluationScore == 8.0 for t in evaluated)
 
 
@@ -102,7 +104,9 @@ async def test_low_scores_prune_the_beam():
     coordinator = make_coordinator(score=3.0)
     result = await coordinator.run()
     assert coordinator.active_beam == []
-    evaluated = [t for t in coordinator.thought_tree.values() if t.status == "evaluated"]
+    evaluated = [
+        t for t in coordinator.thought_tree.values() if t.status == "evaluated"
+    ]
     assert evaluated and all(t.evaluationScore == 3.0 for t in evaluated)
     assert result["final_answer"] == "FINAL"
 
@@ -111,7 +115,9 @@ async def test_refined_thought_persisted_on_nodes():
     # Regression: the refined (scored) thought must replace the original wording.
     coordinator = make_coordinator(score=8.0, refined="REFINED")
     await coordinator.run()
-    evaluated = [t for t in coordinator.thought_tree.values() if t.status == "evaluated"]
+    evaluated = [
+        t for t in coordinator.thought_tree.values() if t.status == "evaluated"
+    ]
     assert evaluated and all(t.thought == "REFINED" for t in evaluated)
 
 
@@ -121,7 +127,10 @@ async def test_selector_is_pluggable():
     beam = make_coordinator(score=8.0, selector=BeamSearch(width=2))
     greedy_result = await greedy.run()
     beam_result = await beam.run()
-    assert greedy_result["stats"]["total_thoughts"] < beam_result["stats"]["total_thoughts"]
+    assert (
+        greedy_result["stats"]["total_thoughts"]
+        < beam_result["stats"]["total_thoughts"]
+    )
 
 
 async def test_synthesizer_receives_evaluated_thoughts():
