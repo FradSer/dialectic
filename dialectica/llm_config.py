@@ -18,7 +18,9 @@ def _log_credential_warnings(model_name: str) -> None:
     """Log warnings if required Google credentials are missing."""
     use_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "false").lower() == "true"
     if use_vertex:
-        if not os.environ.get("GOOGLE_CLOUD_PROJECT") or not os.environ.get("GOOGLE_CLOUD_LOCATION"):
+        if not os.environ.get("GOOGLE_CLOUD_PROJECT") or not os.environ.get(
+            "GOOGLE_CLOUD_LOCATION"
+        ):
             logger.warning(
                 "Using Vertex AI with '%s', but GOOGLE_CLOUD_PROJECT or GOOGLE_CLOUD_LOCATION not set.",
                 model_name,
@@ -52,7 +54,9 @@ def _parse_model_config(config_str: str) -> str | LiteLlm:
             if os.environ.get("OPENROUTER_API_KEY"):
                 logger.info("OpenRouter model: %s", model_name)
                 return LiteLlm(model=model_name)
-            logger.warning("OPENROUTER_API_KEY not set, falling back to %s", _DEFAULT_MODEL)
+            logger.warning(
+                "OPENROUTER_API_KEY not set, falling back to %s", _DEFAULT_MODEL
+            )
             return _DEFAULT_MODEL
 
         if provider == "openai":
@@ -60,10 +64,14 @@ def _parse_model_config(config_str: str) -> str | LiteLlm:
                 openai_model = f"openai/{model_name}"
                 logger.info("OpenAI-compatible model: %s", openai_model)
                 return LiteLlm(model=openai_model)
-            logger.warning("OpenAI credentials missing, falling back to %s", _DEFAULT_MODEL)
+            logger.warning(
+                "OpenAI credentials missing, falling back to %s", _DEFAULT_MODEL
+            )
             return _DEFAULT_MODEL
 
-        logger.warning("Unknown provider '%s', falling back to %s", provider, _DEFAULT_MODEL)
+        logger.warning(
+            "Unknown provider '%s', falling back to %s", provider, _DEFAULT_MODEL
+        )
         return _DEFAULT_MODEL
 
     except Exception as e:

@@ -81,14 +81,18 @@ class Coordinator:
 
     async def _initialize(self):
         """Phase 1: create the root, expand into strategies, score each."""
-        root = self._add_node("root", parent_id=None, content=self.problem, depth=0, status="active")
+        root = self._add_node(
+            "root", parent_id=None, content=self.problem, depth=0, status="active"
+        )
 
         logger.info("Generating initial strategies")
         strategies = await self.generator.expand(root, self.problem)
 
         strategy_ids = []
         for i, strategy in enumerate(strategies):
-            node = self._add_node(f"root_s{i}", parent_id="root", content=strategy, depth=1)
+            node = self._add_node(
+                f"root_s{i}", parent_id="root", content=strategy, depth=1
+            )
             if node is not None:
                 strategy_ids.append(node.thoughtId)
 
@@ -103,12 +107,19 @@ class Coordinator:
         # Don't stall the whole run if nothing cleared the bar: seed exploration
         # with the best strategies the selector would keep.
         if not self.active_beam and strategy_ids:
-            kept = self.selector.select([self.thought_tree[sid] for sid in strategy_ids])
+            kept = self.selector.select(
+                [self.thought_tree[sid] for sid in strategy_ids]
+            )
             self.active_beam = [n.thoughtId for n in kept]
-            logger.info("No strategy passed threshold; seeding beam with top %d", len(self.active_beam))
+            logger.info(
+                "No strategy passed threshold; seeding beam with top %d",
+                len(self.active_beam),
+            )
 
         logger.info(
-            "Scored %d strategies; %d entered the beam", len(strategy_ids), len(self.active_beam)
+            "Scored %d strategies; %d entered the beam",
+            len(strategy_ids),
+            len(self.active_beam),
         )
 
     async def _explore(self):
@@ -116,9 +127,13 @@ class Coordinator:
         iteration = 0
         while self.active_beam and iteration < self.max_depth:
             iteration += 1
-            logger.info(f"Explore iteration {iteration}, beam size: {len(self.active_beam)}")
+            logger.info(
+                f"Explore iteration {iteration}, beam size: {len(self.active_beam)}"
+            )
 
-            frontier = self.selector.select([self.thought_tree[nid] for nid in self.active_beam])
+            frontier = self.selector.select(
+                [self.thought_tree[nid] for nid in self.active_beam]
+            )
 
             new_beam: list[str] = []
             for parent in frontier:
@@ -140,7 +155,9 @@ class Coordinator:
                         new_beam.append(child.thoughtId)
 
             self.active_beam = new_beam
-            logger.info(f"Iteration {iteration} complete, new beam size: {len(self.active_beam)}")
+            logger.info(
+                f"Iteration {iteration} complete, new beam size: {len(self.active_beam)}"
+            )
 
             if not self.active_beam:
                 logger.info("No candidates meet threshold, stopping exploration")
@@ -186,7 +203,9 @@ class Coordinator:
         )
         if node is None:
             if node_id == "root":
-                raise ValueError(f"Root node validation failed for content: {content!r}")
+                raise ValueError(
+                    f"Root node validation failed for content: {content!r}"
+                )
             logger.warning("Skipping invalid node %s", node_id)
             return None
         self.thought_tree[node_id] = node
@@ -197,7 +216,9 @@ class Coordinator:
         if not self.thought_tree:
             return []
 
-        scored = [t for t in self.thought_tree.values() if t.evaluationScore is not None]
+        scored = [
+            t for t in self.thought_tree.values() if t.evaluationScore is not None
+        ]
         if not scored:
             return ["root"] if "root" in self.thought_tree else []
 

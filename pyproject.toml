@@ -22,6 +22,7 @@ dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.4.0",
     "python-dotenv>=1.2.2",
+    "ruff>=0.15.16",
 ]
 
 [tool.pytest.ini_options]
@@ -33,6 +34,14 @@ addopts = "-m 'not e2e'"
 markers = [
     "e2e: end-to-end test that calls the real Gemini API (requires GOOGLE_API_KEY)",
 ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+# pyflakes (F) + pycodestyle (E) are on by default; add isort import sorting.
+extend-select = ["I"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["dialectica"]

@@ -54,7 +54,9 @@ def parse_verdict(response: str) -> EvaluationResult:
         return EvaluationResult.from_verdict(verdict)
     except ValidationError as e:
         logger.warning("Discriminator returned unparseable verdict: %s", e)
-        return EvaluationResult(score=0.0, reasoning="Unparseable discriminator output.")
+        return EvaluationResult(
+            score=0.0, reasoning="Unparseable discriminator output."
+        )
 
 
 async def score_thought(
@@ -65,7 +67,9 @@ async def score_thought(
     return parse_verdict(await agent_runtime.run_agent(discriminator, instruction))
 
 
-def _round_record(round_num: int, thought: str, result: EvaluationResult) -> dict[str, Any]:
+def _round_record(
+    round_num: int, thought: str, result: EvaluationResult
+) -> dict[str, Any]:
     return {
         "round": round_num,
         "thought": thought,
@@ -82,7 +86,9 @@ class SinglePassEvaluator:
     def __init__(self, discriminator: LlmAgent):
         self.discriminator = discriminator
 
-    async def evaluate(self, thought_content: str, context: dict[str, Any]) -> EvaluationResult:
+    async def evaluate(
+        self, thought_content: str, context: dict[str, Any]
+    ) -> EvaluationResult:
         result = await score_thought(self.discriminator, thought_content, context)
         result.adversarial_rounds = 1
         result.history = [_round_record(1, thought_content, result)]
@@ -130,7 +136,9 @@ class AdversarialEvaluator:
         for round_num in range(1, self.max_rounds + 1):
             logger.info(f"GAN round {round_num}/{self.max_rounds}")
 
-            eval_result = await score_thought(self.discriminator, current_thought, context)
+            eval_result = await score_thought(
+                self.discriminator, current_thought, context
+            )
             history.append(_round_record(round_num, current_thought, eval_result))
 
             logger.info(
@@ -147,12 +155,16 @@ class AdversarialEvaluator:
                 break
 
             if eval_result.score >= self.score_threshold:
-                logger.info(f"Quality threshold reached: {eval_result.score:.1f} >= {self.score_threshold}")
+                logger.info(
+                    f"Quality threshold reached: {eval_result.score:.1f} >= {self.score_threshold}"
+                )
                 break
 
             # Refine for the next round, based on the latest critique.
             if round_num < self.max_rounds:
-                current_thought = await self._refine(current_thought, eval_result, context)
+                current_thought = await self._refine(
+                    current_thought, eval_result, context
+                )
                 logger.info("Generator refined thought based on feedback")
         else:
             logger.info(f"Max rounds ({self.max_rounds}) reached")

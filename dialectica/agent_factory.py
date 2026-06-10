@@ -115,7 +115,9 @@ def create_agent(
     )
 
     # output_schema and tools are mutually exclusive in ADK.
-    effective_tools = [] if output_schema else (tools if tools is not None else template["tools"])
+    effective_tools = (
+        [] if output_schema else (tools if tools is not None else template["tools"])
+    )
 
     # Get model config (use role-specific override if available)
     effective_model = model_config if model_config else get_model_config(role)
