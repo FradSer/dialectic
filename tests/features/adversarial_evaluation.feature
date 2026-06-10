@@ -1,0 +1,37 @@
+Feature: GAN adversarial evaluation
+  Each thought is judged by a Discriminator; below the threshold the
+  Generator refines it and the loop re-scores, keeping the best round
+  (thesis -> antithesis -> synthesis).
+
+  Scenario: A passing score on the first round skips refinement
+    Given an adversarial evaluator with max rounds 3 and score threshold 7.0
+    And the discriminator returns scores "8.0"
+    When the evaluator judges "a thought"
+    Then the result score is 8.0
+    And the loop ran 1 round
+    And the refined thought is "a thought"
+
+  Scenario: A low score triggers refinement and re-scoring
+    Given an adversarial evaluator with max rounds 3 and score threshold 7.0
+    And the discriminator returns scores "5.0, 9.0"
+    And the generator refines thoughts to "REFINED"
+    When the evaluator judges "a thought"
+    Then the result score is 9.0
+    And the loop ran 2 rounds
+    And the refined thought is "REFINED"
+
+  Scenario: Refinement that degrades the thought keeps the best round
+    Given an adversarial evaluator with max rounds 2 and score threshold 9.0
+    And the discriminator returns scores "7.5, 3.0"
+    And the generator refines thoughts to "WORSE VERSION"
+    When the evaluator judges "original thought"
+    Then the result score is 7.5
+    And the loop ran 2 rounds
+    And the refined thought is "original thought"
+
+  Scenario: The discriminator can terminate a branch early
+    Given an adversarial evaluator with max rounds 3 and score threshold 7.0
+    And the discriminator returns score 2.0 with termination
+    When the evaluator judges "a thought"
+    Then the evaluation requests termination
+    And the loop ran 1 round
