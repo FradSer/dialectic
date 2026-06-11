@@ -67,6 +67,18 @@ def llm_spec_malformed():
 
 
 @given(
+    parsers.parse("the discriminator returns a fenced verdict with score {score:g}"),
+    target_fixture="llm_spec",
+)
+def llm_spec_fenced(score: float):
+    return {
+        "fenced": True,
+        "verdicts": [{"score": score}],
+        "refined": "A refined, stronger thought.",
+    }
+
+
+@given(
     parsers.parse(
         "the discriminator returns malformed output once and then score {score:g}"
     ),
@@ -107,6 +119,15 @@ def _build_fake(llm_spec):
         return fake
 
     inner = make_call_agent(llm_spec["verdicts"], refined=llm_spec["refined"])
+    if llm_spec.get("fenced"):
+
+        async def fenced(agent, instruction: str) -> str:
+            response = await inner(agent, instruction)
+            if "Discriminator" in agent.name:
+                return f"```json\n{response}\n```"
+            return response
+
+        return fenced
     if not llm_spec.get("malformed_first"):
         return inner
 

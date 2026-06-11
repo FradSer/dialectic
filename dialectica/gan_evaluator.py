@@ -6,6 +6,7 @@ call with no refinement — a cheaper drop-in for the same interface.
 """
 
 import logging
+import re
 from typing import Any
 
 from google.adk.agents import LlmAgent
@@ -15,6 +16,16 @@ from . import agent_runtime
 from .models import DiscriminatorVerdict, EvaluationResult
 
 logger = logging.getLogger(__name__)
+
+# Local models (e.g. gemma via ollama) often wrap their JSON verdict in a
+# markdown code fence even when asked for raw JSON.
+_FENCE_RE = re.compile(r"^\s*```(?:json)?\s*(.*?)\s*```\s*$", re.DOTALL)
+
+
+def strip_code_fence(text: str) -> str:
+    """Return the body of a markdown code fence, or ``text`` unchanged."""
+    match = _FENCE_RE.match(text)
+    return match.group(1) if match else text
 
 
 def _format_context(context: dict[str, Any]) -> str:
@@ -72,7 +83,7 @@ def parse_verdict(response: str) -> EvaluationResult:
     is scored 0.0 so the search prunes it rather than crashing the run.
     """
     try:
-        verdict = DiscriminatorVerdict.model_validate_json(response)
+        verdict = DiscriminatorVerdict.model_validate_json(strip_code_fence(response))
         return EvaluationResult.from_verdict(verdict)
     except ValidationError as e:
         logger.warning("Discriminator returned unparseable verdict: %s", e)

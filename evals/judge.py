@@ -12,6 +12,7 @@ from google.adk.agents import LlmAgent
 from pydantic import BaseModel, Field, ValidationError
 
 from dialectica import agent_runtime
+from dialectica.gan_evaluator import strip_code_fence
 from dialectica.llm_config import get_model_config
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ def build_judge_instruction(problem: str, answer_a: str, answer_b: str) -> str:
 def parse_judge_verdict(response: str) -> JudgeVerdict:
     """Parse the judge's JSON verdict; malformed output becomes a tie."""
     try:
-        return JudgeVerdict.model_validate_json(response)
+        return JudgeVerdict.model_validate_json(strip_code_fence(response))
     except ValidationError as e:
         logger.warning("Judge returned unparseable verdict: %s", e)
         return JudgeVerdict(winner="tie", reasoning="Unparseable judge output.")
