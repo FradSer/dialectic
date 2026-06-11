@@ -337,13 +337,22 @@ Model overrides via env: `BASELINE_MODEL_CONFIG` and `JUDGE_MODEL_CONFIG`
 
 ### Results (2026-06)
 
-Two full matrix runs on the 5 default benchmark problems, all judged blind by
-`gemini-3.5-flash` with position-swap bias control (engine config:
+Three full matrix runs on the 5 default benchmark problems, all judged blind
+by `gemini-3.5-flash` with position-swap bias control (engine config:
 `max_depth=2, beam_width=2, max_gan_rounds=2, threshold=7.0`). Between V1 and
 V2 exactly one thing changed: the discriminator's **"Innovation"** criterion
-was replaced with **"Feasibility under stated constraints"** — making V2 a
-controlled test of how the adversarial criteria steer answers. Cells read
-V1 → V2:
+was replaced with **"Feasibility under stated constraints"** — making the
+matrix a controlled test of how the adversarial criteria steer answers. V3 is
+a second seed of the V2 criteria, run after hardening the engine with
+concurrent evaluation and verdict retry.
+
+| Matrix | Criteria | engine(flash) vs flash | engine(flash) vs **pro** | engine(qwen) vs qwen | Total (W-L-T) |
+|--------|----------|------------------------|--------------------------|----------------------|---------------|
+| V1 | Innovation | 2-1-2 | 3-2-0 | 2-2-1 | 7-5-3 |
+| V2 | Feasibility | 4-1-0 | 4-1-0 | 3-2-0 | **11-4-0** |
+| V3 | Feasibility (seed 2) | 2-2-1 | 3-2-0 | **4-0-1** | 9-4-2 |
+
+Per-problem detail for the controlled V1 → V2 comparison:
 
 | Problem | engine(flash) vs flash | engine(flash) vs **pro** | engine(qwen) vs qwen |
 |---------|------------------------|--------------------------|----------------------|
@@ -352,42 +361,40 @@ V1 → V2:
 | flaky-tests | engine → engine | engine → engine | engine → engine |
 | meeting-overload | tie → baseline | baseline → engine | baseline → baseline |
 | urban-transport | baseline → engine | baseline → baseline | tie → engine |
-| **Total (W-L-T)** | **2-1-2 → 4-1-0** | **3-2-0 → 4-1-0** | **2-2-1 → 3-2-0** |
 
 flash = `gemini-3.5-flash` · pro = `gemini-3.1-pro-preview` (single call) ·
 qwen = `qwen3.6-35b-a3b`. Engine cost: ~20× LLM calls vs the baseline's 1 on
 Gemini, ~30× on Qwen (a stricter discriminator triggers more GAN rounds).
 
-What the 30 comparisons say:
+What the 45 comparisons say:
 
 - **The criteria are a steering knob, not just a filter.** Swapping one
-  evaluation criterion moved the overall record from 7-5-3 to **11-4-0**.
-  Because the GAN loop *refines* thoughts against the critique (unlike a pure
-  value function), whatever the discriminator rewards gets written into the
-  final answer.
-- **Technical/engineering problems: the engine wins reliably** — 7-1-1 in V1,
-  8-1-0 in V2. Judges credit refinement-produced depth: contract-testing
-  pipelines, correct HTTP semantics for brownouts (503 vs 410), rollback
-  procedures and stabilization windows before financial commitments.
-- **Organizational/social problems flipped from losing to parity** — 0-4-2 in
-  V1 (consistently judged "over-complex, impractical", across both model
-  families) to 3-3-0 in V2 after the feasibility criterion landed.
-- A flash engine beats a single stronger **pro** call 4-1 — search can buy
-  back model-tier quality, at ~20× the calls.
+  evaluation criterion moved the record from 7-5-3 (V1) to a pooled
+  **20-8-2** (V2+V3). Because the GAN loop *refines* thoughts against the
+  critique (unlike a pure value function), whatever the discriminator
+  rewards gets written into the final answer.
+- **Technical/engineering problems: the engine wins reliably** — 7-1-1 under
+  V1, **15-2-1** pooled under feasibility criteria (cloud costs, API
+  versioning, flaky-test remediation). Judges credit refinement-produced
+  depth: contract-testing pipelines, correct HTTP semantics for brownouts
+  (503 vs 410), rollback procedures and stabilization windows before
+  financial commitments.
+- **Organizational/social problems went from losing to roughly even** —
+  0-4-2 under V1 (consistently judged "over-complex, impractical", across
+  both model families) to 5-6-1 pooled under feasibility criteria. Still the
+  engine's weak spot, with visible seed-to-seed variance.
+- A flash engine beats a single stronger **pro** call 7-3 pooled — search
+  can buy back model-tier quality, at ~20× the calls.
+- **Concurrency cut wall-clock 2-3×** at unchanged call counts: 64-108
+  s/problem on Gemini in V3 (vs 143-228 s sequential in V2), 272-314 s on
+  Qwen (vs 533-915 s). The Qwen backend transiently returns empty verdicts
+  ~7-10% of the time; verdict retry healed all of them in V3 (5/5) where
+  sequential runs had silently scored them 0.
 
-A second seed of the V2 configuration (V3, run after hardening the engine
-with concurrent sibling evaluation and verdict retry) scored 2-2-1 / 3-2-0 /
-4-0-1. Pooled across both seeds, the feasibility criteria go **20-8-2**
-(technical 15-2-1, organizational 5-6-1). Concurrency cut the engine's
-wall-clock 2-3×: 64-108 s/problem on Gemini (vs 143-228 s sequential),
-272-314 s on Qwen (vs 533-915 s) — at unchanged call counts. The Qwen
-backend transiently returns empty verdicts ~7-10% of the time; verdict
-retry healed all of them (5/5 in V3) where the sequential runs had silently
-scored them 0.
-
-Caveats: a flash judge and small samples — directional, not definitive.
-Full reports (answers + judge reasoning) land in `evals/results/` when you
-run the harness.
+Caveats: a flash judge and small samples — directional, not definitive
+(V2 vs V3 totals put single-seed noise at roughly ±2 wins). Full reports
+(answers + judge reasoning) land in `evals/results/` when you run the
+harness.
 
 ## Pluggable Architecture
 
