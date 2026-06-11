@@ -1,5 +1,10 @@
 """CLI entry point: ``uv run python -m evals``.
 
+Two suites:
+- ``advice`` (default): open-ended problems, blind LLM judge.
+- ``swe``: HumanEval-style code problems, verified by running unit tests —
+  ground truth, no judge.
+
 As a development tool (unlike the library), this loads ``dialectica/.env``.
 """
 
@@ -13,6 +18,8 @@ from dotenv import load_dotenv
 from dialectica import create_engine
 
 from .baseline import SingleCallBaseline, create_baseline_agent
+from .code_eval import CODE_CRITERIA, render_code_markdown, run_code_eval
+from .code_problems import SWE_PROBLEMS
 from .harness import render_markdown, run_eval
 from .judge import BlindJudge, create_judge_agent
 from .problems import DEFAULT_PROBLEMS
@@ -23,10 +30,16 @@ def parse_args() -> argparse.Namespace:
         prog="evals", description="Compare the engine against a single-call baseline."
     )
     parser.add_argument(
+        "--suite",
+        choices=("advice", "swe"),
+        default="advice",
+        help="advice: judged open-ended problems; swe: test-verified code problems.",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
-        default=len(DEFAULT_PROBLEMS),
-        help="Number of benchmark problems to run.",
+        default=None,
+        help="Number of benchmark problems to run (default: all in the suite).",
     )
     parser.add_argument("--max-depth", type=int, default=2)
     parser.add_argument("--beam-width", type=int, default=2)
@@ -45,23 +58,39 @@ async def main() -> None:
     args = parse_args()
     load_dotenv(Path(__file__).resolve().parent.parent / "dialectica" / ".env")
 
-    def engine_factory(statement: str):
-        return create_engine(
-            statement,
-            max_depth=args.max_depth,
-            beam_width=args.beam_width,
-            max_gan_rounds=args.gan_rounds,
-            score_threshold=args.threshold,
+    def make_engine_factory(criteria: str | None):
+        def engine_factory(statement: str):
+            return create_engine(
+                statement,
+                max_depth=args.max_depth,
+                beam_width=args.beam_width,
+                max_gan_rounds=args.gan_rounds,
+                score_threshold=args.threshold,
+                criteria=criteria,
+            )
+
+        return engine_factory
+
+    baseline = SingleCallBaseline(create_baseline_agent())
+
+    if args.suite == "swe":
+        problems = SWE_PROBLEMS[: args.limit]
+        report = await run_code_eval(
+            problems,
+            engine_factory=make_engine_factory(CODE_CRITERIA),
+            baseline=baseline,
         )
+        print(render_code_markdown(report))
+    else:
+        problems = DEFAULT_PROBLEMS[: args.limit]
+        report = await run_eval(
+            problems,
+            engine_factory=make_engine_factory(None),
+            baseline=baseline,
+            judge=BlindJudge(create_judge_agent()),
+        )
+        print(render_markdown(report))
 
-    report = await run_eval(
-        DEFAULT_PROBLEMS[: args.limit],
-        engine_factory=engine_factory,
-        baseline=SingleCallBaseline(create_baseline_agent()),
-        judge=BlindJudge(create_judge_agent()),
-    )
-
-    print(render_markdown(report))
     if args.json:
         args.json.write_text(json.dumps(report.model_dump(), indent=2))
         print(f"JSON report written to {args.json}")
