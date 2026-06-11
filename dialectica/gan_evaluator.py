@@ -33,12 +33,17 @@ def build_discriminator_instruction(thought: str, context: dict[str, Any]) -> st
 **Evaluation Criteria:**
 1. **Soundness**: Is the thought logically sound and feasible?
 2. **Completeness**: Does it address the problem adequately?
-3. **Innovation**: Does it offer novel or valuable insights?
-4. **Practicality**: Can it be implemented effectively?
+3. **Feasibility under stated constraints**: Does it respect the problem's
+   explicit constraints (budget, team size, timeline, politics)? Penalize
+   complexity that the stated actors could not realistically execute.
+4. **Practicality**: Can it be implemented effectively with the means at hand?
+   Prefer simple, executable steps over clever but fragile ones.
 
 Score the thought from 0 to 10, list specific flaws and actionable suggestions,
 give a brief reasoning, and set should_terminate to true only if the path is
 fundamentally flawed. Be rigorous but constructive.
+
+Return your verdict as a single JSON object.
 """
 
 

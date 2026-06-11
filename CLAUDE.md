@@ -9,6 +9,7 @@ Dialectica is a pluggable adversarial reasoning engine: Tree-of-Thoughts search 
 - Install deps: `uv sync`
 - Test (mocked, fast, no API key): `uv run pytest`
 - Test live E2E (calls real Gemini, needs `GOOGLE_API_KEY`): `uv run pytest -m e2e` — auto-skipped without the key
+- Eval (engine vs single-call baseline, real API): `uv run python -m evals [--limit N --json out.json]`
 - Format / lint: `uv run ruff format` / `uv run ruff check`
 - Never hand-edit `pyproject.toml`; use `uv add` / `uv remove`.
 
@@ -32,10 +33,14 @@ Pluggable workflow — every stage is a `typing.Protocol` in `protocols.py`, swa
 
 All public stage methods are `async`.
 
+Top-level `evals/` is the eval harness (dev tool, not shipped in the wheel): each benchmark problem (`problems.py`) is solved by the engine and by a single-call baseline (`baseline.py`), then a blind judge (`judge.py`) compares both answers twice with swapped positions — disagreement is a tie. `harness.py` counts LLM calls through the `run_agent` seam and renders the report. Model overrides: `BASELINE_MODEL_CONFIG` / `JUDGE_MODEL_CONFIG`.
+
+Eval findings (2026-06, 3 runs × 5 problems, see README "Results"): the engine wins technical/engineering problems 7-1-1 but loses organizational/social ones 0-4-2, consistently judged "over-complex" — the pattern reproduces across Gemini and Qwen, implicating the Discriminator's criteria (the "Innovation" axis) rather than any model. Engine cost ≈ 20-32× baseline calls. Reports land in `evals/results/` (gitignored).
+
 ## Gotchas
 
 - The library does **not** load `.env` — consuming apps own that. Only the test suite loads it (`dialectica/.env`).
-- Models: use `gemini-3.5-flash` (default) or `gemini-3.1-pro` only. Configure via `provider:model_name` env vars (`DEFAULT_MODEL_CONFIG`, plus optional `GENERATOR_MODEL_CONFIG` / `DISCRIMINATOR_MODEL_CONFIG` / `SYNTHESIZER_MODEL_CONFIG`). Parsed in `llm_config.py`.
+- Models: use `gemini-3.5-flash` (default) or `gemini-3.1-pro-preview` only — there is no stable `gemini-3.1-pro` (404 on generateContent). Configure via `provider:model_name` env vars (`DEFAULT_MODEL_CONFIG`, plus optional `GENERATOR_MODEL_CONFIG` / `DISCRIMINATOR_MODEL_CONFIG` / `SYNTHESIZER_MODEL_CONFIG`). Parsed in `llm_config.py`.
 - Env vars: `GOOGLE_API_KEY` for AI Studio, or the Vertex trio (`GOOGLE_GENAI_USE_VERTEXAI=true`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`). See `dialectica/.env.example`.
 
 ## Style

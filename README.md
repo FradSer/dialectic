@@ -140,9 +140,9 @@ Then run the suite — see [Testing](#testing).
 DEFAULT_MODEL_CONFIG=google:gemini-3.5-flash
 
 # Role-specific overrides (optional)
-GENERATOR_MODEL_CONFIG=google:gemini-3.1-pro
-DISCRIMINATOR_MODEL_CONFIG=google:gemini-3.1-pro
-SYNTHESIZER_MODEL_CONFIG=google:gemini-3.1-pro
+GENERATOR_MODEL_CONFIG=google:gemini-3.1-pro-preview
+DISCRIMINATOR_MODEL_CONFIG=google:gemini-3.1-pro-preview
+SYNTHESIZER_MODEL_CONFIG=google:gemini-3.1-pro-preview
 ```
 
 **Supported Providers:**
@@ -223,7 +223,7 @@ engine = create_engine(
     beam_width=5,
     max_gan_rounds=4,
     score_threshold=8.0,
-    synthesizer_model="google:gemini-3.1-pro",
+    synthesizer_model="google:gemini-3.1-pro-preview",
 )
 ```
 
@@ -252,7 +252,15 @@ tests/
 ├── test_gan_evaluator.py # GAN loop + single-pass evaluator (mocked LLM)
 ├── test_coordinator.py   # Engine control flow (injected fake stages)
 ├── test_default_pipeline.py  # Default composition integration (mocked LLM)
-└── test_e2e_live.py      # Real Gemini E2E (marked `e2e`)
+├── test_eval_harness.py  # Eval harness units (judge normalization, counting, report)
+├── test_e2e_live.py      # Real Gemini E2E (marked `e2e`)
+└── test_eval_live.py     # Real Gemini eval-harness E2E (marked `e2e`)
+evals/                     # Eval harness (dev tool, not shipped in the wheel)
+├── problems.py            # Benchmark problems
+├── baseline.py            # Single-call baseline (the control arm)
+├── judge.py               # Blind pairwise judge with position-swap bias control
+├── harness.py             # Orchestration, call counting, report rendering
+└── __main__.py            # CLI: uv run python -m evals
 ```
 
 ## Testing
@@ -270,6 +278,67 @@ The suite has two tiers:
 uv run pytest          # mocked tests only (seconds, no key)
 uv run pytest -m e2e   # live API E2E (slower, requires GOOGLE_API_KEY)
 ```
+
+## Evaluation
+
+Does the engine actually beat a single strong-model call? The repo ships an
+eval harness (`evals/`, a dev tool — not part of the published package) that
+answers this with data instead of vibes:
+
+1. Each benchmark problem (`evals/problems.py`) is solved by the **engine**
+   and by a **single-call baseline** (one well-prompted LLM call).
+2. A **blind judge** compares the two answers without knowing which is which.
+   Position bias is neutralized by judging twice with swapped positions —
+   if the two verdicts disagree, the comparison is a tie.
+3. The report tallies wins and the cost of each arm (LLM calls, wall time),
+   counted through the same `run_agent` seam the tests mock.
+
+```bash
+uv run python -m evals                          # all benchmark problems
+uv run python -m evals --limit 2 --json out.json
+uv run python -m evals --max-depth 3 --beam-width 3 --gan-rounds 2
+```
+
+Model overrides via env: `BASELINE_MODEL_CONFIG` and `JUDGE_MODEL_CONFIG`
+(same `provider:model_name` format; e.g. point the baseline at
+`google:gemini-3.1-pro-preview` to compare against a stronger single call).
+
+### Results (2026-06)
+
+Three runs on the 5 default benchmark problems, all judged blind by
+`gemini-3.5-flash` with position-swap bias control (engine config:
+`max_depth=2, beam_width=2, max_gan_rounds=2, threshold=7.0`):
+
+| Problem | engine(flash) vs flash | engine(flash) vs **pro** | engine(qwen) vs qwen |
+|---------|------------------------|--------------------------|----------------------|
+| cloud-costs | tie | engine | engine |
+| api-versioning | engine | engine | baseline |
+| flaky-tests | engine | engine | engine |
+| meeting-overload | tie | baseline | baseline |
+| urban-transport | baseline | baseline | tie |
+| **Total (W-L-T)** | **2-1-2** | **3-2-0** | **2-2-1** |
+
+flash = `gemini-3.5-flash` · pro = `gemini-3.1-pro-preview` (single call) ·
+qwen = `qwen3.6-35b-a3b`. Engine cost: ~20× LLM calls vs the baseline's 1 on
+Gemini, ~32× on Qwen (a stricter discriminator triggers more GAN rounds).
+
+What the 15 comparisons (7-5-3 overall) say:
+
+- **The engine reliably wins on technical/engineering problems** — 7-1-1
+  across cloud costs, API versioning, and flaky-test remediation. Judges
+  repeatedly credited refinement-produced depth: contract-testing pipelines,
+  correct HTTP semantics for brownouts (503 vs 410), quarantine engines with
+  anti-gaming guardrails.
+- **It loses on organizational/social problems** — 0-4-2 on meeting overload
+  and urban transport, consistently judged "over-complex, impractical". The
+  pattern reproduces across model families, implicating the scaffold (the
+  discriminator's criteria) rather than any one model.
+- A flash engine beats a single stronger pro call 3-2 — search can buy back
+  model-tier quality on technical problems, at ~20× the calls.
+
+Practical takeaway: Dialectica is best used as a **technical-decision
+deepener**. The full reports (answers + judge reasoning) land in
+`evals/results/` when you run the harness.
 
 ## Pluggable Architecture
 

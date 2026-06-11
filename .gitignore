@@ -11,3 +11,6 @@ wheels/
 
 # Environment variables
 .env
+
+# Eval harness run outputs (the tool itself is tracked; its results are not)
+evals/results/

@@ -141,9 +141,9 @@ cp dialectica/.env.example dialectica/.env   # 填入 GOOGLE_API_KEY 以跑 live
 DEFAULT_MODEL_CONFIG=google:gemini-3.5-flash
 
 # 角色特定覆盖（可选）
-GENERATOR_MODEL_CONFIG=google:gemini-3.1-pro
-DISCRIMINATOR_MODEL_CONFIG=google:gemini-3.1-pro
-SYNTHESIZER_MODEL_CONFIG=google:gemini-3.1-pro
+GENERATOR_MODEL_CONFIG=google:gemini-3.1-pro-preview
+DISCRIMINATOR_MODEL_CONFIG=google:gemini-3.1-pro-preview
+SYNTHESIZER_MODEL_CONFIG=google:gemini-3.1-pro-preview
 ```
 
 **支持的提供商：**
@@ -224,7 +224,7 @@ engine = create_engine(
     beam_width=5,
     max_gan_rounds=4,
     score_threshold=8.0,
-    synthesizer_model="google:gemini-3.1-pro",
+    synthesizer_model="google:gemini-3.1-pro-preview",
 )
 ```
 
@@ -269,6 +269,48 @@ tests/
 uv run pytest          # 仅 mock 测试（秒级，无需 key）
 uv run pytest -m e2e   # 真实 API E2E（较慢，需要 GOOGLE_API_KEY）
 ```
+
+## 评测
+
+引擎真的比单次强模型调用更好吗？仓库自带评测工具（`evals/`，开发工具，
+不随包发布）用数据回答这个问题：每道基准题分别由**引擎**和**单次调用基线**
+求解，再由**盲评裁判**换位评判两次（两次裁决不一致即判平局，消除位置偏差），
+并统计两边的 LLM 调用数和耗时。
+
+```bash
+uv run python -m evals                          # 全部基准题
+uv run python -m evals --limit 2 --json out.json
+```
+
+模型可用环境变量覆盖：`BASELINE_MODEL_CONFIG` / `JUDGE_MODEL_CONFIG`。
+
+### 实验结果（2026-06）
+
+5 道基准题 × 3 轮（裁判统一为 `gemini-3.5-flash` 盲评；引擎配置
+`max_depth=2, beam_width=2, max_gan_rounds=2`）：
+
+| 问题 | 引擎(flash) vs flash | 引擎(flash) vs **pro** | 引擎(qwen) vs qwen |
+|------|------|------|------|
+| cloud-costs | 平 | 引擎 | 引擎 |
+| api-versioning | 引擎 | 引擎 | 基线 |
+| flaky-tests | 引擎 | 引擎 | 引擎 |
+| meeting-overload | 平 | 基线 | 基线 |
+| urban-transport | 基线 | 基线 | 平 |
+| **合计（胜-负-平）** | **2-1-2** | **3-2-0** | **2-2-1** |
+
+pro = 单次 `gemini-3.1-pro-preview` 调用；qwen = `qwen3.6-35b-a3b`。
+引擎成本约为基线的 20 倍调用（Gemini）/ 32 倍（Qwen）。
+
+15 场对比（总计 7-5-3）的结论：
+
+- **技术/工程类问题引擎稳赢**（7-1-1）：裁判反复肯定对抗精炼磨出的细节深度
+  （契约测试管线、brownout 的 HTTP 语义、带防博弈护栏的隔离机制）。
+- **组织/社会类问题引擎稳输**（0-4-2）：败因一致为"过度复杂、不切实际"，
+  且跨模型家族复现——指向脚手架（Discriminator 评分标准）而非某个模型。
+- flash 引擎对单次更强的 pro 调用净胜（3-2）：搜索能在技术问题上买回模型档位差。
+
+实践建议：把 Dialectica 当作**技术方案深化引擎**使用。完整报告（含全部答案
+与裁决理由）运行后生成于 `evals/results/`。
 
 ## 可插拔架构
 
