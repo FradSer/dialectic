@@ -64,3 +64,15 @@ def test_gan_threshold_defaults_to_beam_threshold():
 def test_custom_criteria_reach_the_evaluator():
     coordinator = create_coordinator(problem="p", criteria="ONLY COST MATTERS")
     assert coordinator.evaluator.criteria == "ONLY COST MATTERS"
+
+
+def test_structured_output_can_be_disabled():
+    # Some backends (e.g. gemma's API variants) break on JSON mode; the
+    # prompt-driven JSON path must be wireable without an output_schema.
+    coordinator = create_coordinator(problem="p", structured_output=False)
+    assert coordinator.evaluator.discriminator.output_schema is None
+
+
+def test_structured_output_is_on_by_default():
+    coordinator = create_coordinator(problem="p")
+    assert coordinator.evaluator.discriminator.output_schema is not None

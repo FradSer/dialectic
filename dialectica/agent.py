@@ -38,6 +38,7 @@ def build_default_components(
     synthesizer_model: Optional[str] = None,
     gan_score_threshold: Optional[float] = None,
     criteria: Optional[str] = None,
+    structured_output: bool = True,
 ) -> tuple[Generator, Evaluator, Selector, Synthesizer]:
     """Build the default (generator, evaluator, selector, synthesizer).
 
@@ -55,11 +56,14 @@ def build_default_components(
         role_name="Generator",
         model_config=get_model_config("GENERATOR"),
     )
+    # Some backends (e.g. gemma API variants) break on enforced JSON mode;
+    # without a schema the discriminator prompt still demands JSON and the
+    # parser handles fences/escapes.
     discriminator_agent = create_agent(
         role="Discriminator",
         role_name="Discriminator",
         model_config=get_model_config("DISCRIMINATOR"),
-        output_schema=DiscriminatorVerdict,
+        output_schema=DiscriminatorVerdict if structured_output else None,
     )
     synthesizer_agent = create_agent(
         role="Synthesizer",
@@ -91,6 +95,7 @@ def create_coordinator(
     synthesizer_model: Optional[str] = None,
     gan_score_threshold: Optional[float] = None,
     criteria: Optional[str] = None,
+    structured_output: bool = True,
 ) -> Coordinator:
     """Create a Coordinator wired with the default ToT + GAN components.
 
@@ -123,6 +128,7 @@ def create_coordinator(
         synthesizer_model=synthesizer_model,
         gan_score_threshold=gan_score_threshold,
         criteria=criteria,
+        structured_output=structured_output,
     )
     return Coordinator(
         problem=problem,

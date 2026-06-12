@@ -54,6 +54,12 @@ def parse_args() -> argparse.Namespace:
         help="swe rescue mode: baseline attempts before a problem counts as failed.",
     )
     parser.add_argument(
+        "--no-structured-output",
+        action="store_true",
+        help="Disable the discriminator's JSON output schema (for backends "
+        "that break on enforced JSON mode, e.g. some gemma API variants).",
+    )
+    parser.add_argument(
         "--limit",
         type=int,
         default=None,
@@ -85,6 +91,7 @@ async def main() -> None:
                 max_gan_rounds=args.gan_rounds,
                 score_threshold=args.threshold,
                 criteria=criteria,
+                structured_output=not args.no_structured_output,
             )
 
         return engine_factory
