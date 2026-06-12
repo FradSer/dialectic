@@ -33,6 +33,18 @@ async def _call_agent_once(agent: LlmAgent, instruction: str) -> str:
     return response_text.strip()
 
 
+# Rate-limit quotas (e.g. tokens-per-minute) need the window to roll over;
+# exponential backoff in seconds just burns the remaining attempts.
+RATE_LIMIT_COOLDOWN = 45.0
+
+_RATE_LIMIT_MARKERS = ("429", "RESOURCE_EXHAUSTED", "rate limit", "RateLimit")
+
+
+def _is_rate_limited(error: Exception) -> bool:
+    text = str(error)
+    return any(marker in text for marker in _RATE_LIMIT_MARKERS)
+
+
 async def run_agent(
     agent: LlmAgent,
     instruction: str,
@@ -40,14 +52,22 @@ async def run_agent(
     max_attempts: int = 3,
     base_delay: float = 2.0,
 ) -> str:
-    """Run ``agent`` on ``instruction``, retrying transient failures."""
+    """Run ``agent`` on ``instruction``, retrying transient failures.
+
+    Rate-limit errors (429/RESOURCE_EXHAUSTED) wait ``RATE_LIMIT_COOLDOWN``
+    per attempt so the quota window can roll over; other failures use fast
+    exponential backoff.
+    """
     for attempt in range(1, max_attempts + 1):
         try:
             return await _call_agent_once(agent, instruction)
         except Exception as e:
             if attempt == max_attempts:
                 raise
-            delay = base_delay * 2 ** (attempt - 1)
+            if _is_rate_limited(e):
+                delay = RATE_LIMIT_COOLDOWN * attempt
+            else:
+                delay = base_delay * 2 ** (attempt - 1)
             logger.warning(
                 "Agent call failed (attempt %d/%d), retrying in %.1fs: %s",
                 attempt,

@@ -12,3 +12,9 @@ Feature: LLM call resilience
     Given an LLM transport that always fails
     When an agent call runs through the runtime
     Then the call fails after exhausting 3 attempts
+
+  Scenario: A rate-limited call waits out the quota window instead of burning retries
+    Given an LLM transport that is rate limited once before succeeding
+    When an agent call runs through the runtime
+    Then the call succeeds after 2 attempts
+    And the retry waited at least 45 seconds
