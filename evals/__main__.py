@@ -18,7 +18,13 @@ from dotenv import load_dotenv
 from dialectica import create_engine
 
 from .baseline import SingleCallBaseline, create_baseline_agent
-from .code_eval import CODE_CRITERIA, render_code_markdown, run_code_eval
+from .code_eval import (
+    CODE_CRITERIA,
+    render_code_markdown,
+    render_rescue_markdown,
+    run_code_eval,
+    run_rescue_eval,
+)
 from .code_problems import SWE_PROBLEMS
 from .harness import render_markdown, run_eval
 from .judge import BlindJudge, create_judge_agent
@@ -34,6 +40,18 @@ def parse_args() -> argparse.Namespace:
         choices=("advice", "swe"),
         default="advice",
         help="advice: judged open-ended problems; swe: test-verified code problems.",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="swe suite: run the engine on every problem instead of rescue "
+        "mode (engine only on baseline failures).",
+    )
+    parser.add_argument(
+        "--screen-attempts",
+        type=int,
+        default=2,
+        help="swe rescue mode: baseline attempts before a problem counts as failed.",
     )
     parser.add_argument(
         "--limit",
@@ -75,12 +93,21 @@ async def main() -> None:
 
     if args.suite == "swe":
         problems = SWE_PROBLEMS[: args.limit]
-        report = await run_code_eval(
-            problems,
-            engine_factory=make_engine_factory(CODE_CRITERIA),
-            baseline=baseline,
-        )
-        print(render_code_markdown(report))
+        if args.full:
+            report = await run_code_eval(
+                problems,
+                engine_factory=make_engine_factory(CODE_CRITERIA),
+                baseline=baseline,
+            )
+            print(render_code_markdown(report))
+        else:
+            report = await run_rescue_eval(
+                problems,
+                engine_factory=make_engine_factory(CODE_CRITERIA),
+                baseline=baseline,
+                screen_attempts=args.screen_attempts,
+            )
+            print(render_rescue_markdown(report))
     else:
         problems = DEFAULT_PROBLEMS[: args.limit]
         report = await run_eval(

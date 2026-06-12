@@ -167,6 +167,119 @@ async def run_code_eval(
     return CodeEvalReport.from_results(results)
 
 
+class RescueProblemResult(BaseModel):
+    """Engine outcome on one problem the baseline could not solve."""
+
+    problem_id: str
+    engine_passed: bool
+    engine_error: str = ""
+    engine_calls: int = Field(..., ge=0)
+    engine_seconds: float = Field(..., ge=0)
+
+
+class RescueReport(BaseModel):
+    """Rescue-mode outcome: engine attempts only baseline failures.
+
+    By construction the engine cannot regress problems the model already
+    solves — it never touches them.
+    """
+
+    total_problems: int
+    screen_attempts: int
+    baseline_solved: list[str]
+    attempted: list[RescueProblemResult]
+    rescued: int
+
+
+async def run_rescue_eval(
+    problems: list[CodeProblem],
+    *,
+    engine_factory: Callable[[str], Coordinator],
+    baseline: SingleCallBaseline,
+    screen_attempts: int = 2,
+) -> RescueReport:
+    """Screen with the baseline, then run the engine only on its failures.
+
+    A problem counts as baseline-solved if any of ``screen_attempts``
+    single-call attempts passes the tests; the engine is measured purely on
+    its rescue rate over the remaining failures.
+    """
+    solved: list[str] = []
+    failures: list[CodeProblem] = []
+    for problem in problems:
+        statement = build_statement(problem)
+        passed = False
+        for _ in range(screen_attempts):
+            answer = await baseline.answer(statement)
+            verdict = await asyncio.to_thread(
+                verify_solution, problem, extract_python_code(answer)
+            )
+            if verdict.passed:
+                passed = True
+                break
+        if passed:
+            solved.append(problem.id)
+        else:
+            failures.append(problem)
+
+    attempted: list[RescueProblemResult] = []
+    for problem in failures:
+        with count_agent_calls() as counter:
+            start = time.perf_counter()
+            engine_run = await engine_factory(build_statement(problem)).run()
+            seconds = time.perf_counter() - start
+        code = extract_python_code(engine_run["final_answer"])
+        verdict = await asyncio.to_thread(verify_solution, problem, code)
+        attempted.append(
+            RescueProblemResult(
+                problem_id=problem.id,
+                engine_passed=verdict.passed,
+                engine_error=verdict.output,
+                engine_calls=counter.count,
+                engine_seconds=seconds,
+            )
+        )
+
+    return RescueReport(
+        total_problems=len(problems),
+        screen_attempts=screen_attempts,
+        baseline_solved=solved,
+        attempted=attempted,
+        rescued=sum(r.engine_passed for r in attempted),
+    )
+
+
+def render_rescue_markdown(report: RescueReport) -> str:
+    """Render the rescue report as a Markdown summary."""
+    failures = len(report.attempted)
+    lines = [
+        "# Dialectica rescue eval: engine on baseline failures (ground truth)",
+        "",
+        f"**Baseline solved {len(report.baseline_solved)}/{report.total_problems} "
+        f"(within {report.screen_attempts} attempts) · "
+        f"Engine rescued {report.rescued}/{failures} of the failures**",
+        "",
+    ]
+    if report.attempted:
+        lines += [
+            "| Failed problem | Engine | Engine calls | Engine s |",
+            "|----------------|--------|--------------|----------|",
+        ]
+        for r in report.attempted:
+            outcome = "RESCUED" if r.engine_passed else "still failing"
+            lines.append(
+                f"| {r.problem_id} | {outcome} | {r.engine_calls} "
+                f"| {r.engine_seconds:.1f} |"
+            )
+        lines.append("")
+    for r in report.attempted:
+        if not r.engine_passed and r.engine_error:
+            lines.append(f"## {r.problem_id} — engine failure")
+            lines.append(f"```\n{r.engine_error}\n```")
+            lines.append("")
+    return "\n".join(lines)
+
+
 def render_code_markdown(report: CodeEvalReport) -> str:
     """Render the code eval report as a Markdown summary."""
     total = len(report.results)
