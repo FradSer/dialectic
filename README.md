@@ -429,8 +429,18 @@ Takeaway: for verifiable tasks, compare any scaffold against **pass@k at
 matched cost** before crediting the scaffold. The advice-suite results
 above face the same critique one level up (their baseline is a single
 answer, not best-of-k) — a best-of-2-plus-judge baseline is the next
-control to run. To show real SWE value, the suite needs problems where
-pass@k fails for moderate k.
+control to run.
+
+The suite was then extended to 18 problems with the literature's hardest
+HumanEval items (`find_zero`, `order_by_points`, `match_parens`,
+`decode_cyclic`, …) and rescue mode was run against cloud gemma-4 via the
+AI Studio API: **both `gemma-4-31b-it` and `gemma-4-26b-a4b-it` solved
+18/18 at pass@2** — the failure set is empty, and even the local 4B-class
+`gemma4:e4b` solved 17/18. HumanEval-class problems are saturated for this
+model family; demonstrating real engine value on code requires
+LiveCodeBench/competition-level difficulty. (Side finding: enforced JSON
+mode breaks `gemma-4-26b-a4b-it` — empty/truncated verdicts — hence the
+`structured_output=False` fallback to prompt-driven JSON.)
 
 ## Pluggable Architecture
 

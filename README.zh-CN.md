@@ -399,8 +399,16 @@ min-path）——综合阶段可能损坏正确代码，这正是救援模式（
 
 结论：对可验证任务，给任何脚手架记功之前，先和**同等成本的 pass@k**
 对比。上文 advice 套件面临同一批评的高阶版本（其基线是单个答案而非
-best-of-k）——best-of-2 加裁判的基线是下一个要跑的对照。要证明 SWE 上的
-真实价值，题目难度需要达到中等 k 的 pass@k 也无法通过的水平。
+best-of-k）——best-of-2 加裁判的基线是下一个要跑的对照。
+
+随后套件扩展到 18 题，加入文献点名的 HumanEval 最难题（`find_zero`、
+`order_by_points`、`match_parens`、`decode_cyclic` 等），并通过 AI Studio
+API 对云端 gemma-4 跑救援模式：**`gemma-4-31b-it` 和 `gemma-4-26b-a4b-it`
+均在 pass@2 内解决 18/18**——失败集为空，连本地 4B 级的 `gemma4:e4b` 也能
+17/18。HumanEval 级题目对该模型家族已饱和；要在代码任务上证明引擎的真实
+价值，需要 LiveCodeBench/竞赛级难度。（附带发现：强制 JSON mode 会令
+`gemma-4-26b-a4b-it` 返回空/截断裁决，因此提供了 `structured_output=False`
+回退到提示词驱动 JSON。）
 
 ## 可插拔架构
 
