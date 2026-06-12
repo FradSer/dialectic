@@ -44,14 +44,15 @@ def always_failing_transport():
 
 
 class RateLimitedTransport:
-    """Fails once with a 429-style error, then succeeds."""
+    """Fails ``limited`` times with a 429-style error, then succeeds."""
 
-    def __init__(self):
+    def __init__(self, limited: int = 1):
+        self.limited = limited
         self.attempts = 0
 
     async def __call__(self, agent, instruction: str) -> str:
         self.attempts += 1
-        if self.attempts == 1:
+        if self.attempts <= self.limited:
             raise RuntimeError(
                 "429 RESOURCE_EXHAUSTED. Quota exceeded; please retry in 42s."
             )
@@ -64,6 +65,16 @@ class RateLimitedTransport:
 )
 def rate_limited_transport():
     return RateLimitedTransport()
+
+
+@given(
+    parsers.parse(
+        "an LLM transport that is rate limited {n:d} times before succeeding"
+    ),
+    target_fixture="transport",
+)
+def rate_limited_n_transport(n: int):
+    return RateLimitedTransport(limited=n)
 
 
 @when("an agent call runs through the runtime", target_fixture="outcome")
@@ -104,3 +115,52 @@ def call_fails(outcome, transport, n: int):
 def retry_waited(outcome, seconds: int):
     assert outcome["sleeps"]
     assert max(outcome["sleeps"]) >= seconds
+
+
+class OverlapProbe:
+    """Transport recording the maximum number of overlapping calls."""
+
+    def __init__(self):
+        self.in_flight = 0
+        self.max_in_flight = 0
+
+    async def __call__(self, agent, instruction: str) -> str:
+        self.in_flight += 1
+        self.max_in_flight = max(self.max_in_flight, self.in_flight)
+        try:
+            await asyncio.sleep(0.01)
+            return "ok"
+        finally:
+            self.in_flight -= 1
+
+
+@given(
+    parsers.parse("the runtime concurrency cap is {n:d}"),
+    target_fixture="capped_runtime",
+)
+def capped_runtime(n: int, monkeypatch):
+    monkeypatch.setenv("DIALECTICA_MAX_CONCURRENCY", str(n))
+    agent_runtime._reset_concurrency_limiter()
+    yield n
+    monkeypatch.delenv("DIALECTICA_MAX_CONCURRENCY", raising=False)
+    agent_runtime._reset_concurrency_limiter()
+
+
+@when(
+    parsers.parse("{n:d} agent calls run concurrently through the runtime"),
+    target_fixture="overlap_probe",
+)
+def run_concurrent_calls(capped_runtime, n: int):
+    probe = OverlapProbe()
+
+    async def go():
+        await asyncio.gather(*(agent_runtime.run_agent(None, "x") for _ in range(n)))
+
+    with patch("dialectica.agent_runtime._call_agent_once", probe):
+        asyncio.run(go())
+    return probe
+
+
+@then(parsers.parse("no more than {n:d} call was in flight at once"))
+def max_overlap_is(overlap_probe, n: int):
+    assert overlap_probe.max_in_flight <= n

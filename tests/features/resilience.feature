@@ -18,3 +18,13 @@ Feature: LLM call resilience
     When an agent call runs through the runtime
     Then the call succeeds after 2 attempts
     And the retry waited at least 45 seconds
+
+  Scenario: Rate limits do not consume the transient-failure retry budget
+    Given an LLM transport that is rate limited 5 times before succeeding
+    When an agent call runs through the runtime
+    Then the call succeeds after 6 attempts
+
+  Scenario: Concurrent calls can be capped for tightly-quota'd backends
+    Given the runtime concurrency cap is 1
+    When 4 agent calls run concurrently through the runtime
+    Then no more than 1 call was in flight at once
