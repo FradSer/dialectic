@@ -396,6 +396,42 @@ Caveats: a flash judge and small samples — directional, not definitive
 (answers + judge reasoning) land in `evals/results/` when you run the
 harness.
 
+### SWE suite results (2026-06, ground truth)
+
+The `swe` suite (12 HumanEval-style problems, pass/fail decided by running
+unit tests — no judge) was run on three local ollama models. Full mode
+(engine on every problem, single-attempt baseline) showed an apparent edge:
+
+| Model | Engine | Baseline (1 attempt) |
+|-------|--------|----------------------|
+| gpt-oss:20b | 11/12 | 10/12 |
+| gemma4:e4b-mlx | 10/12 | 9/12 |
+
+Rescue mode then dismantled that edge. Screening with a **2-attempt**
+baseline first and running the engine only on real failures:
+
+| Model | Baseline solved (pass@2) | Left to rescue | Rescued |
+|-------|--------------------------|----------------|---------|
+| gpt-oss:20b | 12/12 | 0 | — |
+| gemma4:26b-mlx | 12/12 | 0 | — |
+| gemma4:e4b-mlx | 11/12 | 1 (max-fill) | **0** |
+
+The honest reading: on problems of this difficulty, the engine's apparent
+lift over a single call was mostly **resampling luck** — its ~15 calls give
+it many implicit attempts, and simply asking the baseline twice (2 calls)
+recovers nearly all of it. The one genuine capability gap (max-fill on the
+4B-class model) survived 11 engine calls unrescued. Also observed in full
+mode: the engine *regressed* one problem the baseline solved (min-path on
+e4b) — synthesis can mangle working code, which is why rescue mode, which
+never touches baseline-solved problems, is the default.
+
+Takeaway: for verifiable tasks, compare any scaffold against **pass@k at
+matched cost** before crediting the scaffold. The advice-suite results
+above face the same critique one level up (their baseline is a single
+answer, not best-of-k) — a best-of-2-plus-judge baseline is the next
+control to run. To show real SWE value, the suite needs problems where
+pass@k fails for moderate k.
+
 ## Pluggable Architecture
 
 The `Coordinator` owns only the search *control flow*. Every decision is
