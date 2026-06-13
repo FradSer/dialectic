@@ -321,3 +321,113 @@ def render_code_markdown(report: CodeEvalReport) -> str:
                 lines.append(f"```\n{error}\n```")
                 lines.append("")
     return "\n".join(lines)
+
+
+class AblationProblemResult(BaseModel):
+    """Matched-cost ablation outcome for one problem."""
+
+    problem_id: str
+    engine_passed: bool
+    best_of_n_passed: bool
+    pass_at_1: bool
+    n_budget: int = Field(..., ge=0, description="Engine calls = best-of-N budget.")
+    best_of_n_first_pass: int | None = None
+    engine_seconds: float = Field(0.0, ge=0)
+
+
+class AblationReport(BaseModel):
+    """Three-arm tally: pass@1 vs best-of-N vs full engine, at matched cost."""
+
+    results: list[AblationProblemResult]
+    engine_passed: int
+    best_of_n_passed: int
+    pass_at_1_passed: int
+
+    @classmethod
+    def from_results(
+        cls, results: list[AblationProblemResult]
+    ) -> "AblationReport":
+        return cls(
+            results=results,
+            engine_passed=sum(r.engine_passed for r in results),
+            best_of_n_passed=sum(r.best_of_n_passed for r in results),
+            pass_at_1_passed=sum(r.pass_at_1 for r in results),
+        )
+
+
+async def run_ablation(
+    problems: list,
+    *,
+    engine_factory: Callable[[str], Coordinator],
+    baseline: SingleCallBaseline,
+    verifier: Callable | None = None,
+    statement_builder: Callable | None = None,
+    criteria_hint: str = "",
+) -> AblationReport:
+    """Compare the full engine against best-of-N single calls at matched cost.
+
+    For each problem the engine runs first; its call count sets the budget N
+    for the best-of-N arm (N independent single calls, pass if any passes).
+    pass@1 is best-of-N's first sample. This isolates how much of the engine's
+    lift is search/refinement versus plain resampling at the same spend.
+    """
+    if verifier is None:
+        verifier = lambda problem, code: verify_solution(problem, code)  # noqa: E731
+    if statement_builder is None:
+        statement_builder = build_statement
+
+    results: list[AblationProblemResult] = []
+    for problem in problems:
+        statement = statement_builder(problem)
+        with count_agent_calls() as ec:
+            start = time.perf_counter()
+            engine_run = await engine_factory(statement).run()
+            seconds = time.perf_counter() - start
+        engine_code = extract_python_code(engine_run["final_answer"])
+        engine_passed = (
+            await asyncio.to_thread(verifier, problem, engine_code)
+        ).passed
+        n = max(ec.count, 1)
+
+        bo_statement = statement + criteria_hint
+        first_pass = None
+        for k in range(1, n + 1):
+            answer = await baseline.answer(bo_statement)
+            code = extract_python_code(answer)
+            if (await asyncio.to_thread(verifier, problem, code)).passed:
+                first_pass = k
+                break
+
+        results.append(
+            AblationProblemResult(
+                problem_id=problem.id,
+                engine_passed=engine_passed,
+                best_of_n_passed=first_pass is not None,
+                pass_at_1=first_pass == 1,
+                n_budget=n,
+                best_of_n_first_pass=first_pass,
+                engine_seconds=seconds,
+            )
+        )
+    return AblationReport.from_results(results)
+
+
+def render_ablation_markdown(report: AblationReport) -> str:
+    """Render the ablation as a Markdown table."""
+    n = len(report.results)
+    lines = [
+        "# Dialectica ablation: engine vs best-of-N at matched cost (ground truth)",
+        "",
+        f"**Engine {report.engine_passed}/{n} · "
+        f"best-of-N {report.best_of_n_passed}/{n} · "
+        f"pass@1 {report.pass_at_1_passed}/{n}**",
+        "",
+        "| Problem | pass@1 | best-of-N | engine | N |",
+        "|---------|--------|-----------|--------|---|",
+    ]
+    for r in report.results:
+        p1 = "pass" if r.pass_at_1 else "FAIL"
+        bon = f"pass@{r.best_of_n_first_pass}" if r.best_of_n_passed else "FAIL"
+        eng = "pass" if r.engine_passed else "FAIL"
+        lines.append(f"| {r.problem_id} | {p1} | {bon} | {eng} | {r.n_budget} |")
+    return "\n".join(lines)
