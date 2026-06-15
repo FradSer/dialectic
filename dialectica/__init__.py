@@ -1,23 +1,20 @@
 """
-Dialectica — a pluggable adversarial reasoning engine.
+Dialectica — a dialectical reasoning engine.
 
-The Engine runs a beam-style tree search and delegates each stage to a
-swappable component (Generator / Evaluator / Selector / Synthesizer):
-thesis -> antithesis -> synthesis. The defaults give a Tree-of-Thoughts +
-GAN-adversarial pipeline, but any stage can be replaced without touching the
-engine.
+The soul is the dialectic its name promises: **thesis → antithesis →
+synthesis**, run intelligently (name the problem's core tension, oppose it
+with a complete rival rather than a critique, synthesize beyond both, spiral
+until convergence). ``create_dialectic_engine`` is the recommended entry point.
 
-Main Components:
-- Engine: Runs the search control flow over pluggable stages
-- Generator / Evaluator / Selector / Synthesizer: the stage protocols
-- LlmGenerator, AdversarialEvaluator/SinglePassEvaluator, BeamSearch/GreedySearch,
-  LlmSynthesizer: the default implementations
-- ThoughtData / EvaluationResult: data models
+A legacy Tree-of-Thoughts + GAN beam-search pipeline is also shipped
+(``create_engine`` / ``create_coordinator``) as the prior-generation kernel and
+the baseline the dialectic is measured against; every stage is a swappable
+``Protocol`` (Generator / Evaluator / Selector / Synthesizer).
 
 Example:
-    from dialectica import create_engine
+    from dialectica import create_dialectic_engine
 
-    engine = create_engine("Your problem here")
+    engine = create_dialectic_engine("Your problem here")
     result = await engine.run()
 
 
@@ -34,6 +31,7 @@ from .agent import (
 )
 from .agent_factory import ROLE_TEMPLATES, create_agent
 from .coordinator import Coordinator
+from .dialectic import DialecticEngine, create_dialectic_engine
 from .gan_evaluator import (
     DEFAULT_EVALUATION_CRITERIA,
     AdversarialEvaluator,
@@ -46,7 +44,10 @@ from .selection import BeamSearch, GreedySearch
 from .synthesis import LlmSynthesizer
 
 __all__ = [
-    # Main entry points
+    # The dialectic kernel — the recommended entry point
+    "create_dialectic_engine",
+    "DialecticEngine",
+    # Legacy ToT + GAN engine (prior generation / baseline)
     "create_engine",
     "Engine",
     "build_default_components",
@@ -76,4 +77,4 @@ __all__ = [
     "ROLE_TEMPLATES",
 ]
 
-__version__ = "0.3.1"
+__version__ = "0.4.0"

@@ -19,12 +19,15 @@ synthesis** — run intelligently:
 3. Synthesize beyond both. Integrate the conflicting truths into a higher
    solution neither side held.
 4. Spiral. The synthesis becomes the next thesis and faces opposition along
-   axes not yet pressed, until it no longer surpasses (convergence).
+   axes not yet pressed — until the adversary itself finds no genuinely new
+   axis to press (it replies ``EXHAUSTED``) or the synthesis no longer
+   surpasses.
 
-The mechanism does not lean on a reliable score: the score only gates
-iteration, so same-model evaluation noise barely matters — unlike beam
-search, where selection IS the mechanism. ``criteria`` defines what a higher
-synthesis is.
+The mechanism does not lean on a reliable score. Convergence leads with the
+score-INDEPENDENT signal — the adversary conceding it has no new opposition —
+and only falls back on the score comparison as a secondary gate. So
+same-model evaluation noise barely matters, unlike beam search where
+selection IS the mechanism. ``criteria`` defines what a higher synthesis is.
 """
 
 import logging
@@ -143,7 +146,10 @@ class DialecticEngine:
                 "\nYou already pressed these oppositions in earlier rounds — do "
                 "NOT repeat them; find genuinely different, deeper axes:\n"
                 + "\n".join(f"- {a[:200]}" for a in prior)
-                + "\n"
+                + "\nIf no genuinely new, non-redundant axis of opposition "
+                "remains — the dialectic has run its course and any further "
+                "rival would just rephrase the above — reply with exactly:\n"
+                "EXHAUSTED\n"
             )
         else:
             prior_block = ""
@@ -222,6 +228,18 @@ class DialecticEngine:
         prior_antitheses: list[str] = []
         for round_num in range(1, self.max_rounds + 1):
             antitheses = await self._oppose(thesis, prior_antitheses, tension)
+
+            # Semantic convergence: the adversary concedes it has no genuinely
+            # new axis to press. This is the primary, score-independent stop
+            # signal — the dialectic ends because the opposition is spent, not
+            # because a noisy score dipped. (Only offered from round 2 on; the
+            # first opposition along the freshly named tension is always real.)
+            if len(antitheses) == 1 and antitheses[0].strip().upper().startswith(
+                "EXHAUSTED"
+            ):
+                logger.info("Adversary exhausted; converged by exhaustion.")
+                break
+
             prior_antitheses.extend(antitheses)
             synthesis = await self._synthesize(thesis, antitheses, tension)
             synth_score = await self._score(synthesis)

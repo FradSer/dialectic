@@ -28,7 +28,9 @@ def make_dialectic_llm(ctx: dict):
             i = state["score_calls"]
             state["score_calls"] += 1
             scores = ctx["synth_scores"]
-            score = ctx["thesis_score"] if i == 0 else scores[min(i - 1, len(scores) - 1)]
+            score = (
+                ctx["thesis_score"] if i == 0 else scores[min(i - 1, len(scores) - 1)]
+            )
             return json.dumps({"score": score, "reasoning": "ok"})
         if name == "Synthesizer":
             return "SYNTHESIS"
